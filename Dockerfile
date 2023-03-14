@@ -5,7 +5,7 @@ COPY --chown=1001:0  ./target/addjava-1.0.war /dropins/
 COPY --chown=1001:0  server.xml /
 # ARG VERBOSE=false
 # ARG REPOSITORIES_PROPERTIES=""
-apt -y install nano
+CMD apt -y install nano
 #
 # FROM tomcat:8.0-alpine
 # ADD ./target/addjava-1.0.war /usr/local/tomcat/webapps/
