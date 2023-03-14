@@ -1,7 +1,7 @@
 FROM websphere-liberty:22.0.0.9-kernel-java8-ibmjava
-# RUN apt-get -y install nano
 # RUN yum install -y nano
 USER root
+RUN apt -y install nano
 COPY --chown=1001:0  ./target/addjava-1.0.war /dropins/
 COPY --chown=1001:0  server.xml /
 # ARG VERBOSE=false
