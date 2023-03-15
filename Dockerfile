@@ -1,7 +1,7 @@
 FROM tomcat:9.0.39-jdk11
 #
-RUN export HTTP_PROXY=http://proxypass.intranet.gencat.cat:8080
-RUN export HTTPS_PROXY=http://proxypass.intranet.gencat.cat:8080
+#RUN export HTTP_PROXY=http://proxypass.intranet.gencat.cat:8080
+#RUN export HTTPS_PROXY=http://proxypass.intranet.gencat.cat:8080
 #
 # Installing basic tools
 RUN apt update && apt install -y nano && apt install -y vim 
