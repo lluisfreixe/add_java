@@ -1,3 +1,6 @@
+export HTTP_PROXY=http://proxypass.intranet.gencat.cat:8080
+export HTTPS_PROXY=http://proxypass.intranet.gencat.cat:8080
+#
 FROM ibmjava:8-sdk AS builder
 LABEL maintainer="IBM Java Engineering at IBM Cloud"
 
