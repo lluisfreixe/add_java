@@ -8,6 +8,10 @@ FROM eclipse-temurin:8-jdk-jammy
 
 ENV CATALINA_HOME /usr/local/tomcat
 ENV PATH $CATALINA_HOME/bin:$PATH
+#
+RUN export HTTP_PROXY=http://proxypass.intranet.gencat.cat:8080
+RUN export HTTPS_PROXY=http://proxypass.intranet.gencat.cat:8080
+#
 RUN mkdir -p "$CATALINA_HOME"
 WORKDIR $CATALINA_HOME
 
