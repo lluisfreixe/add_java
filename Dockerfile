@@ -7,8 +7,7 @@ RUN export HTTPS_PROXY=http://proxypass.intranet.gencat.cat:8080
 #
 # PLEASE DO NOT EDIT IT DIRECTLY.
 #
-
-FROM eclipse-temurin:8-jdk-jammy
+FROM eclipse-temurin:8-jre-focal
 
 ENV CATALINA_HOME /usr/local/tomcat
 ENV PATH $CATALINA_HOME/bin:$PATH
@@ -27,118 +26,11 @@ ENV TOMCAT_MAJOR 9
 ENV TOMCAT_VERSION 9.0.73
 ENV TOMCAT_SHA512 d43fbd6c5ae00bc0ffc2559743f91abd3547c827426cb0acdc8428e060e8659b6bb41b3877deb061ab6202980de39b9558525a4256725b647d5bff93e47a5664
 
+COPY --from=tomcat:9.0.73-jdk8-temurin-focal $CATALINA_HOME $CATALINA_HOME
 RUN set -eux; \
-	\
-	savedAptMark="$(apt-mark showmanual)"; \
 	apt-get update; \
-	apt-get install -y --no-install-recommends \
-		ca-certificates \
-		curl \
-		dirmngr \
-		gnupg \
-	; \
-	\
-	ddist() { \
-		local f="$1"; shift; \
-		local distFile="$1"; shift; \
-		local mvnFile="${1:-}"; \
-		local success=; \
-		local distUrl=; \
-		for distUrl in \
-# https://issues.apache.org/jira/browse/INFRA-8753?focusedCommentId=14735394#comment-14735394
-			"https://www.apache.org/dyn/closer.cgi?action=download&filename=$distFile" \
-# if the version is outdated (or we're grabbing the .asc file), we might have to pull from the dist/archive :/
-			"https://downloads.apache.org/$distFile" \
-			"https://www-us.apache.org/dist/$distFile" \
-			"https://www.apache.org/dist/$distFile" \
-			"https://archive.apache.org/dist/$distFile" \
-# if all else fails, let's try Maven (https://www.mail-archive.com/users@tomcat.apache.org/msg134940.html; https://mvnrepository.com/artifact/org.apache.tomcat/tomcat; https://repo1.maven.org/maven2/org/apache/tomcat/tomcat/)
-			${mvnFile:+"https://repo1.maven.org/maven2/org/apache/tomcat/tomcat/$mvnFile"} \
-		; do \
-			if curl -fL -o "$f" "$distUrl" && [ -s "$f" ]; then \
-				success=1; \
-				break; \
-			fi; \
-		done; \
-		[ -n "$success" ]; \
-	}; \
-	\
-	ddist 'tomcat.tar.gz' "tomcat/tomcat-$TOMCAT_MAJOR/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz" "$TOMCAT_VERSION/tomcat-$TOMCAT_VERSION.tar.gz"; \
-	echo "$TOMCAT_SHA512 *tomcat.tar.gz" | sha512sum --strict --check -; \
-	ddist 'tomcat.tar.gz.asc' "tomcat/tomcat-$TOMCAT_MAJOR/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz.asc" "$TOMCAT_VERSION/tomcat-$TOMCAT_VERSION.tar.gz.asc"; \
-	export GNUPGHOME="$(mktemp -d)"; \
-	for key in $GPG_KEYS; do \
-		gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$key"; \
-	done; \
-	gpg --batch --verify tomcat.tar.gz.asc tomcat.tar.gz; \
-	tar -xf tomcat.tar.gz --strip-components=1; \
-	rm bin/*.bat; \
-	rm tomcat.tar.gz*; \
-	command -v gpgconf && gpgconf --kill all || :; \
-	rm -rf "$GNUPGHOME"; \
-	\
-# https://tomcat.apache.org/tomcat-9.0-doc/security-howto.html#Default_web_applications
-	mv webapps webapps.dist; \
-	mkdir webapps; \
-# we don't delete them completely because they're frankly a pain to get back for users who do want them, and they're generally tiny (~7MB)
-	\
-	nativeBuildDir="$(mktemp -d)"; \
-	tar -xf bin/tomcat-native.tar.gz -C "$nativeBuildDir" --strip-components=1; \
-	apt-get install -y --no-install-recommends \
-		dpkg-dev \
-		gcc \
-		libapr1-dev \
-		libssl-dev \
-		make \
-	; \
-	( \
-		export CATALINA_HOME="$PWD"; \
-		cd "$nativeBuildDir/native"; \
-		gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \
-		aprConfig="$(command -v apr-1-config)"; \
-		./configure \
-			--build="$gnuArch" \
-			--libdir="$TOMCAT_NATIVE_LIBDIR" \
-			--prefix="$CATALINA_HOME" \
-			--with-apr="$aprConfig" \
-			--with-java-home="$JAVA_HOME" \
-			--with-ssl \
-		; \
-		nproc="$(nproc)"; \
-		make -j "$nproc"; \
-		make install; \
-	); \
-	rm -rf "$nativeBuildDir"; \
-	rm bin/tomcat-native.tar.gz; \
-	\
-# reset apt-mark's "manual" list so that "purge --auto-remove" will remove all build dependencies
-	apt-mark auto '.*' > /dev/null; \
-	[ -z "$savedAptMark" ] || apt-mark manual $savedAptMark > /dev/null; \
-	find "$TOMCAT_NATIVE_LIBDIR" -type f -executable -exec ldd '{}' ';' \
-		| awk '/=>/ { print $(NF-1) }' \
-		| xargs -rt readlink -e \
-		| sort -u \
-		| xargs -rt dpkg-query --search \
-		| cut -d: -f1 \
-		| sort -u \
-		| tee "$TOMCAT_NATIVE_LIBDIR/.dependencies.txt" \
-		| xargs -r apt-mark manual \
-	; \
-	\
-	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
-	rm -rf /var/lib/apt/lists/*; \
-	\
-# sh removes env vars it doesn't support (ones with periods)
-# https://github.com/docker-library/tomcat/issues/77
-	find ./bin/ -name '*.sh' -exec sed -ri 's|^#!/bin/sh$|#!/usr/bin/env bash|' '{}' +; \
-	\
-# fix permissions (especially for running as non-root)
-# https://github.com/docker-library/tomcat/issues/35
-	chmod -R +rX .; \
-	chmod 777 logs temp work; \
-	\
-# smoke test
-	catalina.sh version
+	xargs -rt apt-get install -y --no-install-recommends < "$TOMCAT_NATIVE_LIBDIR/.dependencies.txt"; \
+	rm -rf /var/lib/apt/lists/*
 
 # verify Tomcat Native is working properly
 RUN set -eux; \
