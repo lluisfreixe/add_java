@@ -1,13 +1,13 @@
 #
-RUN export HTTP_PROXY=http://proxypass.intranet.gencat.cat:8080
-RUN export HTTPS_PROXY=http://proxypass.intranet.gencat.cat:8080
-#
-#
 # NOTE: THIS DOCKERFILE IS GENERATED VIA "apply-templates.sh"
 #
 # PLEASE DO NOT EDIT IT DIRECTLY.
 #
 FROM eclipse-temurin:8-jre-focal
+#
+RUN export HTTP_PROXY=http://proxypass.intranet.gencat.cat:8080
+RUN export HTTPS_PROXY=http://proxypass.intranet.gencat.cat:8080
+#
 
 ENV CATALINA_HOME /usr/local/tomcat
 ENV PATH $CATALINA_HOME/bin:$PATH
