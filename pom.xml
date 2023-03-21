@@ -6,7 +6,7 @@
 	<artifactId>addjava</artifactId>
 	<version>1.0</version>
 	<packaging>war</packaging>
-	<!-- un comentari -->
+	<!-- un segon comentari -->
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
